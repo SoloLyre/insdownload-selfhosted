@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block title %}Settings · insdownload{% endblock %}
+{% block content %}
+<section class="panel">
+  <div class="panel-heading">
+    <h2>Settings</h2>
+    <span class="muted">Saved to {{ config_path }}</span>
+  </div>
+  <form id="settings-form" class="stack">
+    <div class="grid two">
+      <label>
+        Host
+        <input type="text" name="app.host" value="{{ settings.app.host }}">
+      </label>
+      <label>
+        Port
+        <input type="number" name="app.port" value="{{ settings.app.port }}">
+      </label>
+    </div>
+    <label>
+      Download Root
+      <input type="text" name="app.download_root" value="{{ settings.app.download_root }}">
+    </label>
+    <div class="grid two">
+      <label>
+        Data Dir
+        <input type="text" name="app.data_dir" value="{{ settings.app.data_dir }}">
+      </label>
+      <label>
+        Log Dir
+        <input type="text" name="app.log_dir" value="{{ settings.app.log_dir }}">
+      </label>
+    </div>
+    <div class="grid two">
+      <label>
+        Default Browser
+        <input type="text" name="browser.default_browser" value="{{ settings.browser.default_browser }}">
+      </label>
+      <label>
+        Default Profile
+        <input type="text" name="browser.default_profile" value="{{ settings.browser.default_profile }}">
+      </label>
+    </div>
+    <div class="grid two">
+      <label>
+        Task Timeout Seconds
+        <input type="number" name="queue.task_timeout_seconds" value="{{ settings.queue.task_timeout_seconds }}" min="60">
+      </label>
+      <label>
+        Max Task History
+        <input type="number" name="queue.max_task_history" value="{{ settings.queue.max_task_history }}" min="20">
+      </label>
+    </div>
+    <p class="muted">Queue mode is fixed to serial execution in v0.</p>
+    <button type="submit">Save Settings</button>
+  </form>
+</section>
+
+<script>
+  const form = document.getElementById("settings-form");
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const raw = Object.fromEntries(new FormData(form).entries());
+    const payload = {
+      app: {
+        host: raw["app.host"],
+        port: Number(raw["app.port"]),
+        download_root: raw["app.download_root"],
+        data_dir: raw["app.data_dir"],
+        log_dir: raw["app.log_dir"],
+      },
+      browser: {
+        default_browser: raw["browser.default_browser"],
+        default_profile: raw["browser.default_profile"],
+      },
+      queue: {
+        parallel_tasks: 1,
+        task_timeout_seconds: Number(raw["queue.task_timeout_seconds"]),
+        max_task_history: Number(raw["queue.max_task_history"]),
+      },
+    };
+    const response = await fetch("/api/settings", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(payload),
+    });
+    const data = await response.json();
+    if (!response.ok || !data.saved) {
+      alert(data.detail || "Failed to save settings.");
+      return;
+    }
+    alert("Settings saved.");
+  });
+</script>
+{% endblock %}

@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% block title %}Tasks · insdownload{% endblock %}
+{% block content %}
+<section class="panel">
+  <h2>New Task</h2>
+  <form id="new-task-form" class="stack">
+    <div class="grid two">
+      <label>
+        Platform
+        <select name="platform" required>
+          {% for platform in platforms %}
+          <option value="{{ platform.platform_id }}">{{ platform.label }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>
+        Target Type
+        <select name="target_kind" required>
+          <option value="profile">Profile</option>
+          <option value="single">Single Post</option>
+        </select>
+      </label>
+    </div>
+    <label>
+      Target URL or Share Text
+      <input type="text" name="input_url" placeholder="Paste a URL or a full share message..." required>
+    </label>
+    <div class="grid two">
+      <label>
+        Browser
+        <input type="text" name="browser" value="{{ settings.browser.default_browser }}">
+      </label>
+      <label>
+        Browser Profile
+        <input type="text" name="browser_profile" value="{{ settings.browser.default_profile }}">
+      </label>
+    </div>
+    <label>
+      Output Root Override
+      <input type="text" name="output_root_override" placeholder="{{ settings.app.download_root }}">
+    </label>
+    <button type="submit">Create Task</button>
+  </form>
+</section>
+
+<section class="panel">
+  <div class="panel-heading">
+    <h2>Recent Tasks</h2>
+    <span class="muted">Serial queue, local-only execution</span>
+  </div>
+  <table class="task-table">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Platform</th>
+        <th>Type</th>
+        <th>Status</th>
+        <th>Created</th>
+        <th>Output</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for task in tasks %}
+      <tr>
+        <td><a href="/tasks/{{ task.id }}">{{ task.id }}</a></td>
+        <td>{{ task.platform_label }}</td>
+        <td>{{ task.target_kind_label }}</td>
+        <td><span class="status status-{{ task.status }}">{{ task.status }}</span></td>
+        <td>{{ task.created_at }}</td>
+        <td class="path-cell">{{ task.output_dir or "-" }}</td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="6" class="empty">No tasks yet.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<script>
+  const form = document.getElementById("new-task-form");
+  const platformField = form.elements.platform;
+  const targetField = form.elements.input_url;
+
+  function detectPlatform(value) {
+    const lowered = (value || "").toLowerCase();
+    if (lowered.includes("xhslink.com") || lowered.includes("xiaohongshu.com")) {
+      return "xiaohongshu";
+    }
+    if (lowered.includes("douyin.com") || lowered.includes("iesdouyin.com")) {
+      return "douyin";
+    }
+    if (lowered.includes("instagram.com") || lowered.includes("instagr.am")) {
+      return "instagram";
+    }
+    return null;
+  }
+
+  targetField.addEventListener("input", () => {
+    const detected = detectPlatform(targetField.value);
+    if (detected) {
+      platformField.value = detected;
+    }
+  });
+
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const payload = Object.fromEntries(new FormData(form).entries());
+    const response = await fetch("/api/tasks", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(payload),
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      alert(data.detail || "Failed to create task.");
+      return;
+    }
+    window.location.href = `/tasks/${data.task.id}`;
+  });
+</script>
+{% endblock %}

@@ -1,0 +1,15 @@
+[app]
+host = "127.0.0.1"
+port = 8123
+download_root = "./platform_downloads"
+data_dir = "./var/data"
+log_dir = "./var/log"
+
+[browser]
+default_browser = "chrome"
+default_profile = "Default"
+
+[queue]
+parallel_tasks = 1
+task_timeout_seconds = 7200
+max_task_history = 200

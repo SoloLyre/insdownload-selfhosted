@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block title %}Task {{ task.id }} · insdownload{% endblock %}
+{% block content %}
+<section class="panel">
+  <div class="panel-heading">
+    <h2>Task {{ task.id }}</h2>
+    <span id="task-status" class="status status-{{ task.status }}">{{ task.status }}</span>
+  </div>
+    <div class="grid two">
+      <div>
+        <p><strong>Platform:</strong> {{ task.platform_label }}</p>
+        <p><strong>Type:</strong> {{ task.target_kind_label }}</p>
+        <p><strong>Input:</strong> <span id="task-input">{{ task.input_url }}</span></p>
+        <p><strong>Created:</strong> <span id="task-created">{{ task.created_at }}</span></p>
+      <p><strong>Started:</strong> <span id="task-started">{{ task.started_at or "-" }}</span></p>
+      <p><strong>Finished:</strong> <span id="task-finished">{{ task.finished_at or "-" }}</span></p>
+    </div>
+    <div>
+      <p><strong>Output root:</strong> <span id="task-output-root">{{ task.output_root or "-" }}</span></p>
+      <p><strong>Output dir:</strong> <span id="task-output-dir">{{ task.output_dir or "-" }}</span></p>
+      <p><strong>Manifest:</strong> <span id="task-manifest">{{ task.manifest_path or "-" }}</span></p>
+      <p><strong>Error:</strong> <span id="task-error">{{ task.error_message or "-" }}</span></p>
+    </div>
+  </div>
+  <div class="actions">
+    <button id="cancel-task" {% if task.status in ["success", "failed", "cancelled"] %}disabled{% endif %}>Cancel Task</button>
+  </div>
+</section>
+
+<section class="panel">
+  <div class="panel-heading panel-heading-tight">
+    <h2>Live Log</h2>
+    <button id="copy-log" type="button">Copy Live Log</button>
+  </div>
+  <pre id="task-log" class="log-box">Loading log…</pre>
+</section>
+
+<script>
+  const taskId = "{{ task.id }}";
+
+  async function refreshTask() {
+    const response = await fetch(`/api/tasks/${taskId}`);
+    const data = await response.json();
+    if (!response.ok) {
+      return;
+    }
+    const task = data.task;
+    const statusEl = document.getElementById("task-status");
+    statusEl.textContent = task.status;
+    statusEl.className = `status status-${task.status}`;
+    document.getElementById("task-started").textContent = task.started_at || "-";
+    document.getElementById("task-finished").textContent = task.finished_at || "-";
+    document.getElementById("task-output-root").textContent = task.output_root || "-";
+    document.getElementById("task-output-dir").textContent = task.output_dir || "-";
+    document.getElementById("task-manifest").textContent = task.manifest_path || "-";
+    document.getElementById("task-error").textContent = task.error_message || "-";
+    document.getElementById("cancel-task").disabled = ["success", "failed", "cancelled"].includes(task.status);
+  }
+
+  async function refreshLog() {
+    const response = await fetch(`/api/tasks/${taskId}/log`);
+    const text = await response.text();
+    document.getElementById("task-log").textContent = text || "";
+  }
+
+  async function poll() {
+    await Promise.all([refreshTask(), refreshLog()]);
+  }
+
+  document.getElementById("cancel-task").addEventListener("click", async () => {
+    const response = await fetch(`/api/tasks/${taskId}/cancel`, {method: "POST"});
+    const data = await response.json();
+    if (!response.ok) {
+      alert(data.detail || "Failed to cancel task.");
+      return;
+    }
+    await poll();
+  });
+
+  document.getElementById("copy-log").addEventListener("click", async (event) => {
+    const button = event.currentTarget;
+    const originalText = button.textContent;
+    try {
+      await navigator.clipboard.writeText(document.getElementById("task-log").textContent || "");
+      button.textContent = "Copied";
+    } catch (error) {
+      button.textContent = "Copy Failed";
+    }
+    setTimeout(() => {
+      button.textContent = originalText;
+    }, 1200);
+  });
+
+  poll();
+  setInterval(poll, 2000);
+</script>
+{% endblock %}
