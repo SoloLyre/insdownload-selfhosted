@@ -5,7 +5,12 @@ import time
 from pathlib import Path
 
 
-MASTER_DIR_NAME = "平台分类下载"
+MASTER_DIR_NAME = "platform_downloads"
+PHOTO_DIR_NAME = "photo"
+VIDEO_DIR_NAME = "video"
+AUDIO_DIR_NAME = "audio"
+OTHER_DIR_NAME = "other"
+LEGACY_MEDIA_DIR_NAMES = ("图片", "视频", "音频", "其他")
 PLATFORM_DIRS = {
     "ins": "ins",
     "douyin": "douyin",
@@ -37,13 +42,22 @@ def looks_like_final_output_dir(path: Path) -> bool:
         return True
     if (path / "download_manifest.json").exists():
         return True
-    for folder_name in ("图片", "视频", "音频"):
+    for folder_name in (
+        PHOTO_DIR_NAME,
+        VIDEO_DIR_NAME,
+        AUDIO_DIR_NAME,
+        OTHER_DIR_NAME,
+        *LEGACY_MEDIA_DIR_NAMES,
+    ):
         if (path / folder_name).exists():
             return True
     return False
 
 
-def dated_folder_name(account_name: str, default_name: str = "download") -> str:
+def dated_folder_name(
+    account_name: str,
+    default_name: str = "download",
+) -> str:
     safe_name = sanitize_folder_name(account_name, default_name)
     if DATE_SUFFIX_RE.search(safe_name):
         return safe_name
@@ -66,7 +80,10 @@ def allocate_output_dir(
         root = default_platform_root(platform)
 
     root.mkdir(parents=True, exist_ok=True)
-    base_name = dated_folder_name(account_name, default_name=default_name)
+    base_name = dated_folder_name(
+        account_name,
+        default_name=default_name,
+    )
     candidate = root / base_name
     if not candidate.exists():
         return candidate

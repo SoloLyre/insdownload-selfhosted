@@ -15,7 +15,7 @@ Use this checklist before the first public push.
 
 ## Current local items that should stay ignored
 
-- `平台分类下载/`
+- `platform_downloads/`
 - `.venv/`
 - `.venv-xhs/`
 - `.venv-app/`

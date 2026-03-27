@@ -26,7 +26,7 @@ from download_douyin import (
     extract_candidate_url,
     resolve_share_url,
 )
-from output_layout import allocate_output_dir
+from output_layout import PHOTO_DIR_NAME, VIDEO_DIR_NAME, allocate_output_dir
 
 
 CHROME_APP_PATHS = {
@@ -36,6 +36,7 @@ CHROME_APP_PATHS = {
     "chromium": Path("/Applications/Chromium.app/Contents/MacOS/Chromium"),
 }
 VIDEO_ID_RE = re.compile(r"/video/(?P<id>\d+)")
+NOTE_ID_RE = re.compile(r"/note/(?P<id>\d+)")
 TARGET_CHOICES = ("auto", "profile", "single")
 EXT_BY_CONTENT_TYPE = {
     "image/jpeg": ".jpg",
@@ -132,11 +133,15 @@ def extract_aweme_id(url: str) -> str:
     match = VIDEO_ID_RE.search(parsed.path)
     if match:
         return match.group("id")
+    match = NOTE_ID_RE.search(parsed.path)
+    if match:
+        return match.group("id")
     raise ValueError(f"Could not extract aweme_id from {url}")
 
 
 def detect_target_kind(url: str) -> str:
-    if VIDEO_ID_RE.search(urlparse(url).path):
+    path = urlparse(url).path
+    if VIDEO_ID_RE.search(path) or NOTE_ID_RE.search(path):
         return "single"
     return "profile"
 
@@ -249,7 +254,7 @@ def page_title(session: CDPSession) -> str:
     return title or ""
 
 
-def wait_for_video_page_ready(session: CDPSession, aweme_id: str, timeout_seconds: int = 30) -> None:
+def wait_for_single_post_page_ready(session: CDPSession, aweme_id: str, timeout_seconds: int = 30) -> None:
     deadline = time.time() + timeout_seconds
     while time.time() < deadline:
         href = session.evaluate("location.href", await_promise=False) or ""
@@ -443,6 +448,7 @@ def extract_single_post_from_dom(session: CDPSession, aweme_id: str) -> dict | N
       const title = (document.title || "").replace(/\\s*-\\s*抖音$/, "").trim();
       const description = getMeta('meta[name="description"]');
       let author = "";
+      let publishedDate = "";
       for (const script of document.querySelectorAll('script[type="application/ld+json"]')) {
         try {
           const data = JSON.parse(script.textContent || "{}");
@@ -454,10 +460,13 @@ def extract_single_post_from_dom(session: CDPSession, aweme_id: str) -> dict | N
           }
         } catch (error) {}
       }
-      if (!author && description) {
-        const match = description.match(/-\\s*(.+?)于\\d{8}发布在抖音/);
+      if (description) {
+        const match = description.match(/-\\s*(.+?)于(\\d{8})发布在抖音/);
         if (match) {
-          author = match[1].trim();
+          if (!author) {
+            author = match[1].trim();
+          }
+          publishedDate = match[2];
         }
       }
       const sourceUrls = [];
@@ -484,12 +493,15 @@ def extract_single_post_from_dom(session: CDPSession, aweme_id: str) -> dict | N
         title,
         description,
         author,
+        publishedDate,
+        isNotePage: location.pathname.includes("/note/"),
         sourceUrls: Array.from(new Set(sourceUrls)),
         images: Array.from(imageMap.values()),
       };
     })()
     """
     payload = session.evaluate(script, await_promise=False) or {}
+    is_note_page = bool(payload.get("isNotePage"))
     source_urls = [normalize_media_url(url) for url in payload.get("sourceUrls") or [] if normalize_media_url(url)]
     image_entries = payload.get("images") or []
 
@@ -523,11 +535,15 @@ def extract_single_post_from_dom(session: CDPSession, aweme_id: str) -> dict | N
         if normalize_media_url(image.get("url"))
     ]
 
+    if is_note_page and images:
+        variants = []
+        source_urls = []
+
     return {
         "aweme_id": aweme_id,
         "desc": (payload.get("title") or payload.get("description") or "").strip(),
-        "create_time": None,
-        "aweme_type": 68 if images and not variants else 0,
+        "create_time": payload.get("publishedDate") or None,
+        "aweme_type": 68 if images and (is_note_page or not variants) else 0,
         "author": {
             "nickname": (payload.get("author") or "").strip(),
             "uid": "",
@@ -576,12 +592,18 @@ def launch_browser_for_profile(sec_uid: str, browser: str, browser_profile: str)
     )
 
 
-def launch_browser_for_video(aweme_id: str, browser: str, browser_profile: str) -> tuple[subprocess.Popen, Path, CDPSession]:
+def launch_browser_for_single_post(
+    post_url: str,
+    browser: str,
+    browser_profile: str,
+) -> tuple[subprocess.Popen, Path, CDPSession]:
+    parsed = urlparse(post_url)
+    target_fragment = parsed.path.lstrip("/")
     return launch_browser(
-        f"https://www.douyin.com/video/{aweme_id}",
+        post_url,
         browser,
         browser_profile,
-        f"douyin.com/video/{aweme_id}",
+        target_fragment,
     )
 
 
@@ -815,10 +837,10 @@ def fetch_all_posts(sec_uid: str, browser: str, browser_profile: str, page_size:
         shutil.rmtree(user_data_dir, ignore_errors=True)
 
 
-def fetch_single_post(aweme_id: str, browser: str, browser_profile: str) -> dict:
-    process, user_data_dir, session = launch_browser_for_video(aweme_id, browser, browser_profile)
+def fetch_single_post(source_url: str, aweme_id: str, browser: str, browser_profile: str) -> dict:
+    process, user_data_dir, session = launch_browser_for_single_post(source_url, browser, browser_profile)
     try:
-        wait_for_video_page_ready(session, aweme_id)
+        wait_for_single_post_page_ready(session, aweme_id)
         if "验证码" in page_title(session):
             raise RuntimeError("Douyin opened a captcha interstitial. Open the video in Chrome once, then retry.")
 
@@ -964,8 +986,8 @@ def download_profile(
         nickname,
         default_name="douyin_user",
     )
-    image_dir = base_dir / "图片"
-    video_dir = base_dir / "视频"
+    image_dir = base_dir / PHOTO_DIR_NAME
+    video_dir = base_dir / VIDEO_DIR_NAME
     image_dir.mkdir(parents=True, exist_ok=True)
     video_dir.mkdir(parents=True, exist_ok=True)
 
@@ -1055,8 +1077,8 @@ def download_single_post(
         nickname,
         default_name="douyin_user",
     )
-    image_dir = base_dir / "图片"
-    video_dir = base_dir / "视频"
+    image_dir = base_dir / PHOTO_DIR_NAME
+    video_dir = base_dir / VIDEO_DIR_NAME
     image_dir.mkdir(parents=True, exist_ok=True)
     video_dir.mkdir(parents=True, exist_ok=True)
 
@@ -1137,6 +1159,7 @@ def main() -> int:
             aweme_id = extract_aweme_id(resolved_url)
             print(f"Resolved aweme_id: {aweme_id}", flush=True)
             item = fetch_single_post(
+                source_url=resolved_url,
                 aweme_id=aweme_id,
                 browser=args.browser,
                 browser_profile=args.browser_profile,

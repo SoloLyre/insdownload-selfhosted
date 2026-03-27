@@ -1,0 +1,22 @@
+changelog:
+  categories:
+    - title: Web UI
+      labels:
+        - ui
+        - web
+    - title: Instagram
+      labels:
+        - instagram
+    - title: Douyin
+      labels:
+        - douyin
+    - title: Xiaohongshu
+      labels:
+        - xiaohongshu
+    - title: Setup and Docs
+      labels:
+        - documentation
+        - setup
+    - title: Other Changes
+      labels:
+        - "*"

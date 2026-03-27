@@ -31,7 +31,7 @@ from xhshow import Xhshow
 
 from browser_worker import launch_hidden_browser, terminate_hidden_browser
 from input_parsing import extract_url_from_text
-from output_layout import allocate_output_dir
+from output_layout import PHOTO_DIR_NAME, VIDEO_DIR_NAME, allocate_output_dir
 
 
 USER_AGENT = (
@@ -1036,8 +1036,8 @@ def download_single_note(
         author_name,
         default_name="xiaohongshu_user",
     )
-    image_dir = output_dir / "图片"
-    video_dir = output_dir / "视频"
+    image_dir = output_dir / PHOTO_DIR_NAME
+    video_dir = output_dir / VIDEO_DIR_NAME
     if refresh_output:
         output_dir.mkdir(parents=True, exist_ok=True)
         clear_output_dir(output_dir)
@@ -1146,25 +1146,6 @@ def main() -> int:
     )
     profile_name = share_profile_name or extract_profile_name(profile_page.text, user_id)
     profile_state = parse_note_state(profile_page.text)
-    output_dir = allocate_output_dir(
-        "xiaohongshu",
-        args.output_dir,
-        profile_name,
-        default_name="xiaohongshu_user",
-    )
-    image_dir = output_dir / "图片"
-    video_dir = output_dir / "视频"
-    if args.refresh_output:
-        output_dir.mkdir(parents=True, exist_ok=True)
-        clear_output_dir(output_dir)
-    manifest_path = output_dir / "download_manifest.json"
-    image_dir.mkdir(parents=True, exist_ok=True)
-    video_dir.mkdir(parents=True, exist_ok=True)
-
-    print(f"Resolved profile URL: {final_target_url}")
-    print(f"User ID: {user_id}")
-    print(f"Profile name: {profile_name}")
-    print(f"Output directory: {output_dir}")
 
     initial_note_refs, has_more = profile_note_refs_from_state(profile_state)
     if has_more:
@@ -1177,6 +1158,26 @@ def main() -> int:
     else:
         note_refs = initial_note_refs
     print(f"Discovered notes: {len(note_refs)}")
+
+    output_dir = allocate_output_dir(
+        "xiaohongshu",
+        args.output_dir,
+        profile_name,
+        default_name="xiaohongshu_user",
+    )
+    image_dir = output_dir / PHOTO_DIR_NAME
+    video_dir = output_dir / VIDEO_DIR_NAME
+    if args.refresh_output:
+        output_dir.mkdir(parents=True, exist_ok=True)
+        clear_output_dir(output_dir)
+    manifest_path = output_dir / "download_manifest.json"
+    image_dir.mkdir(parents=True, exist_ok=True)
+    video_dir.mkdir(parents=True, exist_ok=True)
+
+    print(f"Resolved profile URL: {final_target_url}")
+    print(f"User ID: {user_id}")
+    print(f"Profile name: {profile_name}")
+    print(f"Output directory: {output_dir}")
 
     existing_stems = load_existing_stems(image_dir, video_dir)
     lock = threading.Lock()

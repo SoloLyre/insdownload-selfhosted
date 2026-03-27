@@ -14,7 +14,7 @@ import instaloader
 
 from download_instagram_gallery import build_command as build_gallery_profile_command
 from input_parsing import extract_url_from_text
-from output_layout import allocate_output_dir
+from output_layout import PHOTO_DIR_NAME, VIDEO_DIR_NAME, allocate_output_dir
 
 
 SUPPORTED_BROWSERS = [
@@ -230,8 +230,8 @@ def classify_instagram_media(
     if final_dir is None:
         final_dir = source_dir
 
-    image_dir = final_dir / "图片"
-    video_dir = final_dir / "视频"
+    image_dir = final_dir / PHOTO_DIR_NAME
+    video_dir = final_dir / VIDEO_DIR_NAME
     skip_dirs = {image_dir.resolve(), video_dir.resolve()}
 
     moved_images = 0

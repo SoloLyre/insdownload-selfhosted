@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 from urllib.parse import parse_qsl, urlencode, urlparse
 
-from output_layout import allocate_output_dir
+from output_layout import PHOTO_DIR_NAME, VIDEO_DIR_NAME, allocate_output_dir
 
 
 APP_ID = "936619743392459"
@@ -236,8 +236,8 @@ def main() -> int:
         username,
         default_name="instagram_user",
     )
-    image_dir = root / "图片"
-    video_dir = root / "视频"
+    image_dir = root / PHOTO_DIR_NAME
+    video_dir = root / VIDEO_DIR_NAME
     image_dir.mkdir(parents=True, exist_ok=True)
     video_dir.mkdir(parents=True, exist_ok=True)
 

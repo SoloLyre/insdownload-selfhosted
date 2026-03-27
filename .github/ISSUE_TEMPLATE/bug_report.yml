@@ -1,0 +1,83 @@
+name: Bug report
+description: Report a reproducible bug in the self-hosted app or download flows.
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Before filing, confirm:
+        - you are on macOS
+        - you tested with the latest `main`
+        - you used a logged-in local browser session when required
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Affected platform
+      options:
+        - Instagram
+        - Douyin
+        - Xiaohongshu
+        - Web UI
+        - Setup / bootstrap
+    validations:
+      required: true
+  - type: dropdown
+    id: target_kind
+    attributes:
+      label: Target type
+      options:
+        - Profile
+        - Single Post
+        - Not applicable
+    validations:
+      required: true
+  - type: textarea
+    id: summary
+    attributes:
+      label: What happened
+      description: Briefly describe the bug.
+      placeholder: The task fails after resolving the target URL.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Start the app
+        2. Create a Xiaohongshu profile task
+        3. Paste ...
+        4. Observe ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      placeholder: The app should download all media into 图片/视频.
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs or error output
+      description: Paste only the relevant section.
+      render: shell
+    validations:
+      required: false
+  - type: input
+    id: macos
+    attributes:
+      label: macOS version
+      placeholder: macOS 15.4
+    validations:
+      required: false
+  - type: input
+    id: chrome
+    attributes:
+      label: Browser and profile
+      placeholder: Chrome 146, Default
+    validations:
+      required: false

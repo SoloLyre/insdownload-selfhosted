@@ -11,7 +11,13 @@ from urllib.error import URLError
 from urllib.parse import parse_qs, urlparse
 from urllib.request import Request, urlopen
 
-from output_layout import allocate_output_dir
+from output_layout import (
+    AUDIO_DIR_NAME,
+    OTHER_DIR_NAME,
+    PHOTO_DIR_NAME,
+    VIDEO_DIR_NAME,
+    allocate_output_dir,
+)
 
 
 SUPPORTED_BROWSERS = [
@@ -32,6 +38,7 @@ USER_AGENT = (
 )
 DOUYIN_HOST_RE = re.compile(r"(?:https?://)?(?:[\w-]+\.)?(?:douyin|iesdouyin)\.com/[^\s]+", re.I)
 VIDEO_ID_RE = re.compile(r"/video/(?P<id>\d+)")
+NOTE_ID_RE = re.compile(r"/note/(?P<id>\d+)")
 TRIM_CHARS = " \t\r\n\"'`<>[](){}。，、；：！？,.!?:;）】》"
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".avif", ".gif", ".bmp"}
 VIDEO_EXTENSIONS = {".mp4", ".mov", ".mkv", ".webm", ".m4v"}
@@ -130,6 +137,9 @@ def canonicalize_douyin_url(url: str) -> str:
     match = VIDEO_ID_RE.search(parsed.path)
     if match:
         return f"https://www.douyin.com/video/{match.group('id')}"
+    match = NOTE_ID_RE.search(parsed.path)
+    if match:
+        return f"https://www.douyin.com/note/{match.group('id')}"
     return url
 
 
@@ -137,6 +147,9 @@ def output_folder_name(url: str) -> str:
     match = VIDEO_ID_RE.search(urlparse(url).path)
     if match:
         return f"douyin_video_{match.group('id')}"
+    match = NOTE_ID_RE.search(urlparse(url).path)
+    if match:
+        return f"douyin_note_{match.group('id')}"
     return "douyin_media"
 
 
@@ -193,12 +206,12 @@ def cookie_args(args: argparse.Namespace) -> tuple[list[str], str | None]:
 def classify_destination(path: Path, output_dir: Path) -> Path:
     suffix = path.suffix.lower()
     if suffix in IMAGE_EXTENSIONS:
-        return output_dir / "图片"
+        return output_dir / PHOTO_DIR_NAME
     if suffix in VIDEO_EXTENSIONS:
-        return output_dir / "视频"
+        return output_dir / VIDEO_DIR_NAME
     if suffix in AUDIO_EXTENSIONS:
-        return output_dir / "音频"
-    return output_dir / "其他"
+        return output_dir / AUDIO_DIR_NAME
+    return output_dir / OTHER_DIR_NAME
 
 
 def move_downloads(downloaded_files: list[Path], output_dir: Path) -> dict[str, int]:
@@ -355,7 +368,7 @@ def main() -> int:
     else:
         print(
             "Done. "
-            f"图片 {stats['images']}，视频 {stats['videos']}，音频 {stats['audio']}，其他 {stats['other']}。"
+            f"Photos {stats['images']}, videos {stats['videos']}, audio {stats['audio']}, other {stats['other']}."
         )
     return 0
 
